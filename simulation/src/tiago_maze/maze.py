@@ -139,6 +139,20 @@ def _carve_path(params: MazeParams, rng: random.Random) -> tuple[list[tuple[int,
     sections never share a wall, so the laser always sees clean geometry.
     """
     n_turns = params.n_turns
+    frozen = tuple(params.cell_sequence or ())
+    if frozen:
+        if frozen[0] != (0, 0) or len(set(frozen)) != len(frozen):
+            raise ValueError("cell_sequence must start at (0, 0) and may not repeat cells")
+        steps = [(b[0] - a[0], b[1] - a[1]) for a, b in zip(frozen, frozen[1:])]
+        if not steps or any(step not in DIR_VECS for step in steps):
+            raise ValueError("cell_sequence cells must be cardinally adjacent")
+        turn_idx = [index for index in range(1, len(steps))
+                    if steps[index] != steps[index - 1]]
+        if len(turn_idx) != n_turns:
+            raise ValueError(
+                f"cell_sequence has {len(turn_idx)} corners, expected {n_turns}"
+            )
+        return list(frozen), turn_idx
     forced = tuple(params.turn_sequence or ())
     if forced:
         return _carve_forced_path(params, rng, forced)

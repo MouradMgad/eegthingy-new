@@ -11,6 +11,8 @@ import pytest
 from ssvep.acquisition import CapturedData, PhaseLog, save_session
 from ssvep.config import COMMANDS, ConfigurationError, EEG_CHANNEL_NAMES, Settings
 from ssvep.protocol import decode_marker, encode_marker, make_trials, marker_description
+from ssvep.decoder import SSVEPDecoder
+from ssvep.quality import assess_channels
 
 
 def test_trials_are_balanced_inside_every_randomized_block():
@@ -99,3 +101,43 @@ def test_save_session_writes_15_eeg_channels_and_labels(tmp_path):
     assert metadata["aborted"] is False
     assert len(metadata["markers"]) == 4
     assert paths["events"].read_text(encoding="utf-8").count("\n") == 5
+
+
+def test_ssvep_decoder_learns_and_round_trips(tmp_path):
+    settings = Settings()
+    sfreq = 125.0
+    samples = int(2 * sfreq)
+    time = np.arange(samples) / sfreq
+    rng = np.random.default_rng(14)
+    X, y = [], []
+    for command in COMMANDS:
+        frequency = settings.frequencies_hz[command]
+        for _ in range(6):
+            epoch = rng.normal(0, 0.25, (len(EEG_CHANNEL_NAMES), samples))
+            epoch += np.sin(2 * np.pi * frequency * time)[None, :]
+            epoch += 0.4 * np.sin(2 * np.pi * 2 * frequency * time)[None, :]
+            X.append(epoch)
+            y.append(command)
+    decoder = SSVEPDecoder(settings.frequencies_hz.copy()).fit(np.asarray(X), np.asarray(y), sfreq)
+    assert np.mean(decoder.predict(np.asarray(X)) == np.asarray(y)) == pytest.approx(1.0)
+
+    path = decoder.save(tmp_path / "model.json")
+    loaded = SSVEPDecoder.load(path)
+    assert np.array_equal(loaded.predict(np.asarray(X)), np.asarray(y))
+
+
+def test_cap_quality_flags_flat_and_railed_channels():
+    sfreq = 125.0
+    time = np.arange(500) / sfreq
+    data = np.vstack([
+        12 * np.sin(2 * np.pi * (8 + index / 10) * time)
+        for index in range(len(EEG_CHANNEL_NAMES))
+    ])
+    data[0] = 0
+    data[1] += 200_000
+    report = assess_channels(data, sfreq)
+    assert report[0].status == "BAD"
+    assert report[0].reason == "flat or disconnected"
+    assert report[1].status == "BAD"
+    assert report[1].reason == "railed or saturated"
+    assert any(row.status == "GOOD" for row in report[2:])

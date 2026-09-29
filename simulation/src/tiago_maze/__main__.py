@@ -67,6 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--decision-plan", default=None, metavar="PLAN.json",
                     help="replay recorded MIRepNet predictions; true labels build the maze "
                          "and predictions steer the robot")
+    ap.add_argument("--session-report", default=None, metavar="REPORT.csv",
+                    help="re-run every recorded physical left/right decision and wait time "
+                         "from a completed live-session report")
     # Controller parameter overrides (same names as the ROS 2 parameters).
     ap.add_argument("--safe-dist", type=float, default=0.8, help="stop distance (m)")
     ap.add_argument("--forward-speed", type=float, default=0.60, help="drive speed (m/s)")
@@ -82,6 +85,10 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--offscreen", action="store_true", help="render offscreen")
     ap.add_argument("--frames", type=int, default=None, help="exit after N frames")
     ap.add_argument("--screenshot", default=None, help="write a screenshot on exit")
+    ap.add_argument("--record-maze-video", default=None, metavar="OUTPUT.mp4",
+                    help="record the rendered maze window to an MP4 file")
+    ap.add_argument("--video-fps", type=float, default=20.0,
+                    help="frame rate for --record-maze-video")
     return ap
 
 
@@ -136,13 +143,16 @@ def build_params(argv: list[str] | None = None) -> GameParams:
     p.offscreen = args.offscreen
     p.max_frames = args.frames
     p.screenshot = args.screenshot
+    p.maze_video = args.record_maze_video
+    p.video_fps = args.video_fps
     p.quiet = args.quiet
     if args.standard_maze is not None:
         from .standards import get_standard_maze
         standard = get_standard_maze(args.standard_maze)
         p.maze.seed = standard.seed
         p.maze.n_turns = len(standard.route)
-        p.maze.turn_sequence = standard.directions
+        p.maze.turn_sequence = None
+        p.maze.cell_sequence = standard.cells
         p.extra_meta.setdefault("standard_maze", standard.number)
     if args.decision_plan:
         from .scripted import directions_from_plan, load_decision_plan
@@ -157,6 +167,7 @@ def build_params(argv: list[str] | None = None) -> GameParams:
             p.maze.seed = standard.seed
             p.maze.n_turns = len(standard.route)
             p.maze.turn_sequence = None
+            p.maze.cell_sequence = standard.cells
         else:
             p.maze.n_turns = len(p.decision_plan)
             p.maze.turn_sequence = directions_from_plan(p.decision_plan)
@@ -170,6 +181,45 @@ def build_params(argv: list[str] | None = None) -> GameParams:
             "standard_maze": payload.get("standard_maze", ""),
             "inference_mode": payload.get("inference_mode", "precomputed"),
             "eligible_patient_epochs": payload.get("eligible_patient_epochs", ""),
+        })
+    if args.session_report:
+        from .report import read_report
+        try:
+            summary, decisions = read_report(args.session_report)
+        except (OSError, ValueError) as e:
+            parser.error(f"--session-report: {e}")
+        if not decisions:
+            parser.error("--session-report: report contains no decisions")
+        p.session_decision_plan = decisions
+        p.control.enable_ws = False
+        p.manual_keys = False
+        p.subject_id = p.subject_id or summary.get("subject", "")
+        p.test_id = p.test_id or summary.get("test", "session-replay")
+        p.view = summary.get("view", p.view)
+        for key, attr in (
+            ("forward_speed_mps", "forward_speed"),
+            ("turn_speed_radps", "turn_speed"),
+            ("safe_dist_m", "safe_dist"),
+            ("front_half_angle_deg", "front_half_angle_deg"),
+            ("yaw_tol_deg", "yaw_tol_deg"),
+            ("heading_kp_radps_per_rad", "heading_kp"),
+        ):
+            if summary.get(key) not in (None, ""):
+                setattr(p.control, attr, float(summary[key]))
+        standard_number = summary.get("standard_maze")
+        if standard_number not in (None, ""):
+            from .standards import get_standard_maze
+            standard = get_standard_maze(int(standard_number))
+            p.maze.seed = standard.seed
+            p.maze.n_turns = len(standard.route)
+            p.maze.turn_sequence = None
+            p.maze.cell_sequence = standard.cells
+        else:
+            p.maze.seed = int(summary.get("seed", p.maze.seed or 0))
+            p.maze.n_turns = int(summary.get("n_turns", p.maze.n_turns))
+        p.extra_meta.update({
+            "mode": "recorded-live-session-replay",
+            "source_session_report": str(Path(args.session_report).resolve()),
         })
     return p
 

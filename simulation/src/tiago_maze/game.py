@@ -46,6 +46,7 @@ from .controller import Logger, SafeWallTeleop, wrap_pi
 from .params import GameParams
 from .robot_model import UrdfLoader, _box_geomnode
 from .scripted import correction_decision, label_direction
+from .scoring import summarize_corner_score
 from .ws_client import DecisionClient
 
 
@@ -112,6 +113,11 @@ class MazeGame(ShowBase):
         self.render.setAntialias(AntialiasAttrib.MMultisample)
         self.render.setShaderAuto()
 
+        self._maze_video = None
+        if p.maze_video:
+            from .video import MazeVideoRecorder
+            self._maze_video = MazeVideoRecorder(self.win, p.maze_video, p.video_fps)
+
         # Pull the near clip plane in close: the corridor walls are only ~0.8 m
         # away, so the default ~1 m near plane clips them (in first-person the
         # camera would appear to "see through" the wall to the floor beyond).
@@ -120,6 +126,8 @@ class MazeGame(ShowBase):
 
         self.clock = ClockObject.getGlobalClock()
         self.logger = Logger(enabled=not p.quiet)
+        if self._maze_video is not None:
+            self.logger.info(f"Recording maze video: {self._maze_video.output}")
 
         # ---------------- replay trace (optional) ----------------
         # In replay mode the maze must match the recording, so pull the maze
@@ -196,6 +204,8 @@ class MazeGame(ShowBase):
         # inference exactly when a corner is reached; older plans may already
         # contain predictions for backward-compatible replay.
         self.scripted_plan = list(p.decision_plan)
+        self.session_plan = list(p.session_decision_plan)
+        self._session_plan_index = 0
         self.decision_provider = p.decision_provider
         if (self.scripted_plan and self.decision_provider is None and
                 any(row.get("predicted_label") is None for row in self.scripted_plan)):
@@ -208,6 +218,7 @@ class MazeGame(ShowBase):
         self._script_stop_sim_time: float | None = None
         self._last_script_row: dict | None = None
         self._script_hold_for_recovery = False
+        self._live_recovery_turn_index: int | None = None
 
         # Gameplay state.
         self.progress = 0          # correct turns completed
@@ -232,7 +243,7 @@ class MazeGame(ShowBase):
         self._traj: dict[str, list[float]] = {k: [] for k in ("t", "x", "y", "yaw", "pitch")}
         self._sample_trace()
 
-        if not p.offscreen:
+        if not p.offscreen or self._maze_video is not None:
             # Write a (possibly partial) report + trace if the window is closed.
             self.exitFunc = self._finalize
 
@@ -247,6 +258,8 @@ class MazeGame(ShowBase):
         self._replay_time = 0.0
         self._replay_paused = False
         self._replay_len = float(self._rt[-1]) if len(self._rt) else 0.0
+        if self._maze_video is not None:
+            self.exitFunc = self._finalize
         if len(self._rt):
             self.x = float(self._rx[0])
             self.y = float(self._ry[0])
@@ -513,7 +526,11 @@ class MazeGame(ShowBase):
             pos=(0, 0.58), scale=0.07, fg=(1, 1, 1, 1),
             shadow=(0, 0, 0, 0.9), mayChange=True,
         )
-        help_text = (
+        exporting_video = (
+            self.params.offscreen and self._maze_video is not None and
+            (self.replay_mode or bool(getattr(self, "session_plan", [])))
+        )
+        help_text = "" if exporting_video else (
             "[space] pause   [r] restart   [v] view   [esc] quit"
             if self.replay_mode
             else "[left]/[right] decide   [v] view   [r] new maze   [esc] quit"
@@ -610,7 +627,10 @@ class MazeGame(ShowBase):
             self.accept("r", self._restart_replay)
             self.accept("space", self._toggle_pause)
         else:
-            self.accept("r", self._new_maze)
+            # Paper-standard layouts are one run per result folder; restarting
+            # in place would mix two trials and would stop the current video.
+            if not self.params.maze.cell_sequence:
+                self.accept("r", self._new_maze)
             if self.params.manual_keys:
                 self.accept("arrow_left", self._manual_decision, [1])
                 self.accept("arrow_right", self._manual_decision, [2])
@@ -670,6 +690,7 @@ class MazeGame(ShowBase):
         self._script_stop_sim_time = None
         self._last_script_row = None
         self._script_hold_for_recovery = False
+        self._live_recovery_turn_index = None
         self._report_written = False
         self._trace_written = False
         self._traj = {k: [] for k in ("t", "x", "y", "yaw", "pitch")}
@@ -694,11 +715,17 @@ class MazeGame(ShowBase):
             # Start the decision timer when the robot stops at a wall.
             self._wait_start = now
             self._script_stop_sim_time = self._sim_time
+            # A live wrong turn is corrected by the simulator, not by asking
+            # the subject/model for another EEG decision.  Queue the recovery
+            # immediately so a websocket decision cannot become a new trial.
+            self._queue_live_recovery()
         elif old == "STOPPED_WAITING_EEG" and new in ("TURN_L", "TURN_R"):
             # A decision was consumed: record how long it took to arrive and
             # open a per-decision record (finalized once the turn completes).
             if self._wait_start is not None:
                 dt = now - self._wait_start
+                if self.session_plan and self._script_submission is not None:
+                    dt = float(self._script_submission.get("wait_s", dt) or 0.0)
                 self.last_decision_time = dt
                 self.decision_times.append(dt)
                 self._wait_start = None
@@ -740,6 +767,7 @@ class MazeGame(ShowBase):
                 result = "recovery"
                 if reached_path:
                     self.progress = max(self.progress, tp.index + 1)
+                    self._live_recovery_turn_index = None
                     self._flash(
                         f"automatic recovery complete — continuing to turn {tp.index + 2}",
                         (0.45, 0.8, 1.0, 1),
@@ -764,6 +792,8 @@ class MazeGame(ShowBase):
             else:
                 result = "wrong"
                 self.wrong_turns += 1
+                if source == "model" and self.live_model_mode:
+                    self._live_recovery_turn_index = tp.index
                 message = (f"turn {tp.index + 1}: MIRepNet guessed {direction} — WRONG"
                            if source == "model" else f"wrong way! ({direction})")
                 self._flash(
@@ -781,11 +811,15 @@ class MazeGame(ShowBase):
         """Write the CSV report and NPZ pose trace (once each). Called on
         completion, on starting a new maze, and on window close."""
         if self.replay_mode:
+            if self._maze_video is not None:
+                self._maze_video.close()
             return
         from datetime import datetime
         when = when or datetime.now()
         self._write_report(when)
         self._write_trace(when)
+        if self._maze_video is not None:
+            self._maze_video.close()
 
     def _write_report(self, when=None) -> None:
         """Write the CSV run report (once). Includes the run's parameters."""
@@ -799,9 +833,10 @@ class MazeGame(ShowBase):
 
         p = self.params
         waits = [r["wait_s"] for r in self.decision_records]
-        model_records = [r for r in self.decision_records if r.get("source") == "model"]
-        scored_records = model_records or self.decision_records
-        model_correct = sum(1 for r in scored_records if r["result"] == "correct")
+        score = summarize_corner_score(self.decision_records)
+        annotated_records = score["records"]
+        scored_records = score["scored_records"]
+        model_correct = score["correct"]
         elapsed = self.finish_time if self.finish_time is not None else self._sim_time
         when = when or datetime.now()
         meta = {
@@ -828,9 +863,8 @@ class MazeGame(ShowBase):
             "decisions": len(scored_records),
             "correct": model_correct,
             "accuracy": round(model_correct / len(scored_records), 6) if scored_records else 0.0,
-            "wrong_turns": self.wrong_turns,
-            "recovery_turns": sum(1 for r in self.decision_records
-                                  if r.get("source") == "recovery"),
+            "wrong_turns": score["wrong"],
+            "recovery_turns": score["recovery_attempts"],
             "total_time_s": round(elapsed, 2),
             "total_wait_s": round(sum(waits), 2),
             "avg_wait_s": round(sum(waits) / len(waits), 3),
@@ -843,7 +877,7 @@ class MazeGame(ShowBase):
             key = k if k not in meta else f"user_{k}"
             meta[key] = v if isinstance(v, (str, int, float, bool)) or v is None else json.dumps(v)
         try:
-            path = report.write_report(p.report_dir, meta, self.decision_records, when=when,
+            path = report.write_report(p.report_dir, meta, annotated_records, when=when,
                                         subject=p.subject_id, test=p.test_id)
             self._report_written = True
             self.logger.info(f"Wrote CSV report: {path}")
@@ -953,10 +987,85 @@ class MazeGame(ShowBase):
             if disposition == "pending_decision":
                 self._script_submission = {"source": "recovery"}
 
+    def _queue_live_recovery(self) -> None:
+        """Queue a deterministic corrective turn for a wrong live decision."""
+        if (not self.live_model_mode or self.completed or
+                self._live_recovery_turn_index is None or
+                self.controller.state != "STOPPED_WAITING_EEG"):
+            return
+        tp = self._nearest_turn_point()
+        if tp is None or tp.index != self._live_recovery_turn_index:
+            return
+        heading = round(self.yaw / (math.pi / 2)) % 4
+        decision = correction_decision(heading, tp.out_heading)
+        if not decision:
+            self._live_recovery_turn_index = None
+            return
+        disposition = self.controller.submit_decision(decision)
+        if disposition == "pending_decision":
+            self._script_submission = {"source": "recovery"}
+            self._flash(
+                f"turn {tp.index + 1}: correcting automatically — not scored",
+                (0.45, 0.8, 1.0, 1),
+            )
+
+    def _drive_live_recovery(self) -> None:
+        """Hold a 180-degree live recovery at the corner for its second turn."""
+        if (self.live_model_mode and self._live_recovery_turn_index is not None and
+                self._script_hold_for_recovery and self.controller.state == "FORWARD"):
+            self._script_hold_for_recovery = False
+            self.controller.enter_stopped_waiting_EEG()
+
+    def _drive_recorded_session(self) -> None:
+        """Replay the raw decisions and pauses from an actual live session."""
+        if not self.session_plan or self.completed:
+            return
+        if self._script_hold_for_recovery and self.controller.state == "FORWARD":
+            self._script_hold_for_recovery = False
+            self.controller.enter_stopped_waiting_EEG()
+            return
+        if self.controller.state != "STOPPED_WAITING_EEG":
+            return
+        if self._session_plan_index >= len(self.session_plan):
+            return
+        if self._script_stop_sim_time is None:
+            return
+        row = dict(self.session_plan[self._session_plan_index])
+        wait_s = float(row.get("wait_s", 0.0) or 0.0)
+        if self._sim_time - self._script_stop_sim_time < wait_s:
+            return
+        chosen = str(row.get("chosen_dir", "")).strip().upper()
+        decision = 1 if chosen == "LEFT" else 2 if chosen == "RIGHT" else 0
+        if not decision:
+            try:
+                decision = int(float(row.get("predicted_label", 0)))
+            except (TypeError, ValueError):
+                decision = 0
+        if decision not in (1, 2):
+            raise ValueError(
+                f"recorded decision {self._session_plan_index + 1} has no LEFT/RIGHT choice"
+            )
+        submission = {
+            "source": ("recovery" if str(row.get("source", "")).lower() == "recovery"
+                       else "model"),
+            "wait_s": wait_s,
+            "epoch": row.get("epoch", ""),
+            "file": row.get("file", ""),
+            "epoch_in_file": row.get("epoch_in_file", ""),
+            "true_label": row.get("true_label", ""),
+            "predicted_label": row.get("predicted_label", decision),
+            "confidence": row.get("confidence", ""),
+        }
+        disposition = self.controller.submit_decision(decision)
+        if disposition == "pending_decision":
+            self._script_submission = submission
+            self._session_plan_index += 1
+
     def _flash(self, text: str, color) -> None:
         self.hud_flash.setText(text)
         self.hud_flash["fg"] = color
-        self._flash_until = time.monotonic() + 2.0
+        clock = self._sim_time if self.session_plan and self.params.offscreen else time.monotonic()
+        self._flash_until = clock + 2.0
 
     # ==================================================================
     # Main loop
@@ -990,6 +1099,11 @@ class MazeGame(ShowBase):
         self._update_camera(frame_dt)
         self._update_hud()
         self._update_minimap()
+        if self._maze_video is not None:
+            timeline = self._sim_time if p.offscreen and self.session_plan else None
+            self._maze_video.capture_if_due(timeline)
+        if self.completed and p.offscreen and self.session_plan:
+            self.userExit()
         return self._maybe_exit(task)
 
     def _step_physics(self, dt: float) -> None:
@@ -1003,6 +1117,8 @@ class MazeGame(ShowBase):
             self.controller.on_scan(scan)
             self.controller.on_odom(self.yaw)
             self.controller.control_loop()
+            self._drive_live_recovery()
+            self._drive_recorded_session()
             self._drive_scripted_plan()
 
         # Integrate differential-drive kinematics with the current command.
@@ -1043,6 +1159,13 @@ class MazeGame(ShowBase):
         self._update_camera(frame_dt)
         self._update_hud()
         self._update_minimap()
+        if self._maze_video is not None:
+            self._maze_video.capture_if_due(self._replay_time)
+            if self._replay_time >= self._replay_len and p.offscreen:
+                # Deterministic trace-to-video export: close the MP4 container
+                # cleanly and terminate once the final recorded pose is drawn.
+                self._maze_video.close()
+                self.userExit()
         return self._maybe_exit(task)
 
     def _interp_replay(self, t: float) -> tuple[float, float, float]:
@@ -1159,19 +1282,22 @@ class MazeGame(ShowBase):
         elapsed = self.finish_time if self.finish_time is not None else self._sim_time
         fd = c.front_dist if math.isfinite(c.front_dist) else float("inf")
         tgt = "none" if c.target_yaw is None else f"{math.degrees(c.target_yaw):7.1f} deg"
-        ws_status = (("on-demand patient EEG test" if self.decision_provider is not None
+        model_display_mode = bool(self.scripted_plan or self.live_model_mode or self.session_plan)
+        ws_status = ("recorded live-session decisions" if self.session_plan else
+                     (("on-demand patient EEG test" if self.decision_provider is not None
                       else "recorded EEG replay") if self.scripted_plan else
-                     (self.ws.status if self.ws else "off (manual keys)"))
+                     (self.ws.status if self.ws else "off (manual keys)")))
         n_turns = len(self.maze.turn_points)
         last = "  -  " if self.last_decision_time is None else f"{self.last_decision_time:5.2f}s"
         if self.decision_times:
             avg = f"{sum(self.decision_times) / len(self.decision_times):5.2f}s"
         else:
             avg = "  -  "
-        model_records = [r for r in self.decision_records if r.get("source") == "model"]
-        model_correct = sum(r.get("result") == "correct" for r in model_records)
-        score_line = (f"model   {model_correct}/{len(model_records)} correct  "
-                      f"({100 * model_correct / len(model_records):.1f}%)"
+        score = summarize_corner_score(self.decision_records)
+        model_records = score["scored_records"]
+        model_correct = score["correct"]
+        score_line = (f"model   {model_correct}/{len(model_records)} corners correct  "
+                      f"({100 * score['accuracy']:.1f}%)"
                       if model_records else "model   waiting for first EEG prediction")
         self.hud_status.setText(
             f"state   {c.state}\n"
@@ -1180,7 +1306,7 @@ class MazeGame(ShowBase):
             f"cmd     v={c.cmd[0]:.2f} m/s  w={c.cmd[1]:+.2f} rad/s\n"
             f"ws      {ws_status}\n"
             f"turns   {self.progress}/{n_turns}   wrong {self.wrong_turns}\n"
-            + (f"{score_line}\n" if self.scripted_plan or self.live_model_mode else "") +
+            + (f"{score_line}\n" if model_display_mode else "") +
             f"decide  last {last}  avg {avg}  (n={len(self.decision_times)})\n"
             f"time    {elapsed:6.1f} s   seed {self.maze.seed}   view {self.view_mode}"
         )
@@ -1188,10 +1314,10 @@ class MazeGame(ShowBase):
         if self.completed:
             total = sum(self.decision_times)
             avg_v = total / len(self.decision_times) if self.decision_times else 0.0
-            self.hud_prompt.setText("MIRepNet MAZE COMPLETE!" if self.scripted_plan or self.live_model_mode
+            self.hud_prompt.setText("MIRepNet MAZE COMPLETE!" if model_display_mode
                                     else "MAZE COMPLETE!")
             self.hud_prompt["fg"] = (0.35, 1.0, 0.45, 1)
-            if self.scripted_plan or self.live_model_mode:
+            if model_display_mode:
                 accuracy = 100 * model_correct / len(model_records) if model_records else 0.0
                 self.hud_flash.setText(
                     f"model result: {model_correct}/{len(model_records)} correct "
@@ -1206,8 +1332,14 @@ class MazeGame(ShowBase):
             self._flash_until = time.monotonic() + 1.0  # keep it shown
         elif c.state == "STOPPED_WAITING_EEG":
             # Steady prompt (no flashing) with a live decision timer.
-            waited = 0.0 if self._wait_start is None else time.monotonic() - self._wait_start
-            if self.scripted_plan:
+            waited = (self._sim_time - self._script_stop_sim_time
+                      if self.session_plan and self._script_stop_sim_time is not None
+                      else 0.0 if self._wait_start is None
+                      else time.monotonic() - self._wait_start)
+            if self.live_model_mode and self._live_recovery_turn_index is not None:
+                prompt = "wrong prediction — robot is correcting itself (not scored)"
+                self.hud_prompt.setText(prompt)
+            elif self.scripted_plan:
                 tp = self._nearest_turn_point()
                 if tp is not None and tp.index in self._script_attempted:
                     prompt = "wrong prediction — robot is correcting itself"
@@ -1223,14 +1355,16 @@ class MazeGame(ShowBase):
         else:
             self.hud_prompt.setText("")
 
-        if not self.completed and time.monotonic() > self._flash_until:
+        flash_clock = self._sim_time if self.session_plan and self.params.offscreen else time.monotonic()
+        if not self.completed and flash_clock > self._flash_until:
             self.hud_flash.setText("")
 
     def _update_hud_replay(self) -> None:
         at_end = self._replay_time >= self._replay_len
         paused = "   [PAUSED]" if self._replay_paused else ""
+        exporting = self.params.offscreen and self._maze_video is not None
         self.hud_status.setText(
-            f"REPLAY{paused}\n"
+            f"{'RECONSTRUCTED REPLAY' if exporting else 'REPLAY'}{paused}\n"
             f"seed    {self.maze.seed}\n"
             f"time    {self._replay_time:6.2f} / {self._replay_len:6.2f} s\n"
             f"pos     x={self.x:6.2f}  y={self.y:6.2f}\n"
@@ -1238,8 +1372,8 @@ class MazeGame(ShowBase):
             f"view    {self.view_mode}"
         )
         self.hud_prompt.setText("")
-        self.hud_flash.setText(
+        self.hud_flash.setText("" if exporting else (
             "replay finished  —  [r] restart   [space] play"
             if at_end else "[space] pause   [r] restart   [v] view"
-        )
+        ))
         self.hud_flash["fg"] = (0.85, 0.92, 1.0, 1)

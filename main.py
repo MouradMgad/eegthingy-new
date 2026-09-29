@@ -25,7 +25,7 @@ def run_classifier():
 
 
 def run_ssvep_collector():
-    """Launch the independent four-command SSVEP recording package."""
+    """Launch SSVEP collection, cap check, training, testing, and live control."""
     root = os.path.dirname(os.path.abspath(__file__))
     subprocess.run([sys.executable, "-m", "ssvep"], cwd=root)
 
@@ -44,6 +44,8 @@ def run_mirepnet_workbench():
     print(" 4) Fine-tune selected subjects or individual files")
     print(" 5) Test recorded subject EEG at each corner of a fixed maze")
     print(" 6) Live OpenBCI headset control on a fixed maze")
+    print(" 7) Live-session preflight (model, environment, cap, channels)")
+    print(" 8) Diagnose/recover the latest MIRepNet live session")
     print(" b) Back")
     while True:
         try:
@@ -69,9 +71,20 @@ def run_mirepnet_workbench():
         if choice in ("6", "live-maze", "headset-maze", "openbci-maze"):
             run_mirepnet_script(os.path.join("classifier", "run.py"), "--mirepnet-live-maze")
             return
+        if choice in ("7", "preflight", "check", "diagnose"):
+            subject = input("Planned subject ID (blank if unknown)> ").strip()
+            hardware = input("Connect and test the real OpenBCI cap now? [Y/n]> ").strip().lower()
+            args = ["--hardware"] if hardware not in ("n", "no") else []
+            if subject:
+                args += ["--subject", subject]
+            run_mirepnet_script(os.path.join("scripts", "mirepnet_live_preflight.py"), *args)
+            return
+        if choice in ("8", "recover", "session-diagnosis"):
+            run_mirepnet_script(os.path.join("scripts", "diagnose_mirepnet_session.py"))
+            return
         if choice in ("b", "back", "q", "quit"):
             return
-        print("enter 1-6 or b")
+        print("enter 1-8 or b")
 
 
 def run_simulation():
@@ -110,7 +123,7 @@ def menu():
     print(" 2) Classifier")
     print(" 3) Robot Simulation")
     print(" 4) MIRepNet Workbench (offline / online / fine-tune / maze)")
-    print(" 5) SSVEP Data Collector (forward / right / backward / left)")
+    print(" 5) SSVEP Workbench (collect / cap check / train / test / live maze)")
     print(" q) Quit")
     print("=" * 35)
     return input("> ").strip().lower()

@@ -59,6 +59,30 @@ def test_replay_and_fps_args():
     assert p.fps == 144
 
 
+def test_session_report_replays_recorded_decisions_and_parameters(tmp_path):
+    from tiago_maze import report
+
+    source = report.write_report(
+        tmp_path,
+        {
+            "seed": 11, "standard_maze": 1, "subject": 10, "test": 1,
+            "view": "first", "forward_speed_mps": 0.6,
+            "turn_speed_radps": 0.75, "safe_dist_m": 0.8,
+        },
+        [{"decision": 1, "turn": 1, "chosen_dir": "LEFT", "wait_s": 1.25}],
+    )
+    p = build_params(["--session-report", str(source)])
+    assert p.control.enable_ws is False
+    assert p.manual_keys is False
+    assert p.subject_id == "10"
+    assert p.test_id == "1"
+    assert p.view == "first"
+    assert p.maze.seed == 11
+    assert p.maze.cell_sequence is not None
+    assert p.session_decision_plan[0]["chosen_dir"] == "LEFT"
+    assert p.session_decision_plan[0]["wait_s"] == "1.25"
+
+
 def test_unknown_arg_triggers_help_exit(capsys):
     with pytest.raises(SystemExit) as exc:
         build_params(["--totally-unknown"])

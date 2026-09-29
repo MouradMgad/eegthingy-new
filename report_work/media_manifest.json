@@ -1,0 +1,74 @@
+{
+  "subject_10_test_1": {
+    "face": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_10_test_1\\camera.mp4",
+      "fps": 30.0,
+      "frame_count": 15954,
+      "duration_s": 531.8,
+      "thumbnail_time_s": 193.625,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_10_test_1_face.jpg"
+    },
+    "maze": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_10_test_1\\maze_session_replay.mp4",
+      "fps": 20.0,
+      "frame_count": 10533,
+      "duration_s": 526.65,
+      "thumbnail_time_s": 193.625,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_10_test_1_maze.jpg"
+    }
+  },
+  "subject_10_test_2": {
+    "face": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_10_test_2\\camera.mp4",
+      "fps": 30.0,
+      "frame_count": 13860,
+      "duration_s": 462.0,
+      "thumbnail_time_s": 143.438,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_10_test_2_face.jpg"
+    },
+    "maze": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_10_test_2\\maze_session_replay.mp4",
+      "fps": 20.0,
+      "frame_count": 8832,
+      "duration_s": 441.6,
+      "thumbnail_time_s": 143.438,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_10_test_2_maze.jpg"
+    }
+  },
+  "subject_6_test_1": {
+    "face": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_6_test_1\\camera.mp4",
+      "fps": 30.0,
+      "frame_count": 11746,
+      "duration_s": 391.53333333333336,
+      "thumbnail_time_s": 116.0,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_6_test_1_face.jpg"
+    },
+    "maze": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_6_test_1\\maze_session_replay.mp4",
+      "fps": 20.0,
+      "frame_count": 7518,
+      "duration_s": 375.9,
+      "thumbnail_time_s": 116.0,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_6_test_1_maze.jpg"
+    }
+  },
+  "subject_6_test_2": {
+    "face": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_6_test_2\\camera.mp4",
+      "fps": 30.0,
+      "frame_count": 10827,
+      "duration_s": 360.9,
+      "thumbnail_time_s": 243.625,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_6_test_2_face.jpg"
+    },
+    "maze": {
+      "path": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\paper results\\subject_6_test_2\\maze_session_replay.mp4",
+      "fps": 20.0,
+      "frame_count": 7132,
+      "duration_s": 356.6,
+      "thumbnail_time_s": 243.625,
+      "thumbnail": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\report_work\\thumbs\\subject_6_test_2_maze.jpg"
+    }
+  }
+}

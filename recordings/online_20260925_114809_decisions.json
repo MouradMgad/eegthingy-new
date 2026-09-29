@@ -1,0 +1,805 @@
+{
+  "format": "mirepnet-online-session-v1",
+  "created_at": "2026-09-25T11:48:51",
+  "metadata": {
+    "mode": "live maze",
+    "input_device": "OpenBCI USB",
+    "checkpoint": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\models\\mirepnet\\mirepnet__7subjects_28runs_22b10fee.pt",
+    "decoder": "MIRepNet foundation model (pretrained, 5.14M params)",
+    "stride_seconds": 0.2,
+    "calibration": "unlabeled",
+    "standard_maze": 2
+  },
+  "windows": [
+    {
+      "window": 1,
+      "timestamp": "2026-09-25 11:48:14.196",
+      "log_odds": 1.0812,
+      "adaptive_center": -0.1485,
+      "recentered_margin": 1.2297,
+      "prediction": 2,
+      "confidence": 0.7738,
+      "committed_class": 0
+    },
+    {
+      "window": 2,
+      "timestamp": "2026-09-25 11:48:14.623",
+      "log_odds": 1.078,
+      "adaptive_center": -0.1485,
+      "recentered_margin": 1.2265,
+      "prediction": 2,
+      "confidence": 0.7732,
+      "committed_class": 0
+    },
+    {
+      "window": 3,
+      "timestamp": "2026-09-25 11:48:15.047",
+      "log_odds": 2.2739,
+      "adaptive_center": -0.1485,
+      "recentered_margin": 2.4224,
+      "prediction": 2,
+      "confidence": 0.9185,
+      "committed_class": 0
+    },
+    {
+      "window": 4,
+      "timestamp": "2026-09-25 11:48:15.279",
+      "log_odds": 4.1253,
+      "adaptive_center": -0.1485,
+      "recentered_margin": 4.2738,
+      "prediction": 2,
+      "confidence": 0.9863,
+      "committed_class": 0
+    },
+    {
+      "window": 5,
+      "timestamp": "2026-09-25 11:48:15.692",
+      "log_odds": 4.0263,
+      "adaptive_center": -0.1485,
+      "recentered_margin": 4.1748,
+      "prediction": 2,
+      "confidence": 0.9849,
+      "committed_class": 0
+    },
+    {
+      "window": 6,
+      "timestamp": "2026-09-25 11:48:16.102",
+      "log_odds": 3.405,
+      "adaptive_center": -0.1485,
+      "recentered_margin": 3.5536,
+      "prediction": 2,
+      "confidence": 0.9722,
+      "committed_class": 0
+    },
+    {
+      "window": 7,
+      "timestamp": "2026-09-25 11:48:16.519",
+      "log_odds": -0.3375,
+      "adaptive_center": -0.1504,
+      "recentered_margin": -0.1871,
+      "prediction": 1,
+      "confidence": 0.5466,
+      "committed_class": 0
+    },
+    {
+      "window": 8,
+      "timestamp": "2026-09-25 11:48:17.130",
+      "log_odds": -0.5722,
+      "adaptive_center": -0.1546,
+      "recentered_margin": -0.4176,
+      "prediction": 1,
+      "confidence": 0.6029,
+      "committed_class": 0
+    },
+    {
+      "window": 9,
+      "timestamp": "2026-09-25 11:48:17.537",
+      "log_odds": -0.2918,
+      "adaptive_center": -0.156,
+      "recentered_margin": -0.1358,
+      "prediction": 1,
+      "confidence": 0.5339,
+      "committed_class": 0
+    },
+    {
+      "window": 10,
+      "timestamp": "2026-09-25 11:48:17.947",
+      "log_odds": -0.2014,
+      "adaptive_center": -0.1565,
+      "recentered_margin": -0.0449,
+      "prediction": 1,
+      "confidence": 0.5112,
+      "committed_class": 0
+    },
+    {
+      "window": 11,
+      "timestamp": "2026-09-25 11:48:18.560",
+      "log_odds": -0.3745,
+      "adaptive_center": -0.1586,
+      "recentered_margin": -0.2158,
+      "prediction": 1,
+      "confidence": 0.5537,
+      "committed_class": 0
+    },
+    {
+      "window": 12,
+      "timestamp": "2026-09-25 11:48:18.969",
+      "log_odds": -0.4854,
+      "adaptive_center": -0.1619,
+      "recentered_margin": -0.3235,
+      "prediction": 1,
+      "confidence": 0.5802,
+      "committed_class": 0
+    },
+    {
+      "window": 13,
+      "timestamp": "2026-09-25 11:48:19.380",
+      "log_odds": -0.703,
+      "adaptive_center": -0.1673,
+      "recentered_margin": -0.5356,
+      "prediction": 1,
+      "confidence": 0.6308,
+      "committed_class": 0
+    },
+    {
+      "window": 14,
+      "timestamp": "2026-09-25 11:48:19.991",
+      "log_odds": -0.3329,
+      "adaptive_center": -0.169,
+      "recentered_margin": -0.1639,
+      "prediction": 1,
+      "confidence": 0.5409,
+      "committed_class": 0
+    },
+    {
+      "window": 15,
+      "timestamp": "2026-09-25 11:48:20.402",
+      "log_odds": -0.5594,
+      "adaptive_center": -0.1729,
+      "recentered_margin": -0.3865,
+      "prediction": 1,
+      "confidence": 0.5954,
+      "committed_class": 0
+    },
+    {
+      "window": 16,
+      "timestamp": "2026-09-25 11:48:20.808",
+      "log_odds": -0.0981,
+      "adaptive_center": -0.1721,
+      "recentered_margin": 0.0741,
+      "prediction": 2,
+      "confidence": 0.5185,
+      "committed_class": 0
+    },
+    {
+      "window": 17,
+      "timestamp": "2026-09-25 11:48:21.421",
+      "log_odds": 0.0217,
+      "adaptive_center": -0.1702,
+      "recentered_margin": 0.1919,
+      "prediction": 2,
+      "confidence": 0.5478,
+      "committed_class": 0
+    },
+    {
+      "window": 18,
+      "timestamp": "2026-09-25 11:48:21.831",
+      "log_odds": 0.26,
+      "adaptive_center": -0.1659,
+      "recentered_margin": 0.4259,
+      "prediction": 2,
+      "confidence": 0.6049,
+      "committed_class": 0
+    },
+    {
+      "window": 19,
+      "timestamp": "2026-09-25 11:48:22.241",
+      "log_odds": -0.1927,
+      "adaptive_center": -0.1662,
+      "recentered_margin": -0.0265,
+      "prediction": 1,
+      "confidence": 0.5066,
+      "committed_class": 0
+    },
+    {
+      "window": 20,
+      "timestamp": "2026-09-25 11:48:22.450",
+      "log_odds": -0.2964,
+      "adaptive_center": -0.1675,
+      "recentered_margin": -0.129,
+      "prediction": 1,
+      "confidence": 0.5322,
+      "committed_class": 0
+    },
+    {
+      "window": 21,
+      "timestamp": "2026-09-25 11:48:22.859",
+      "log_odds": -0.3358,
+      "adaptive_center": -0.1691,
+      "recentered_margin": -0.1666,
+      "prediction": 1,
+      "confidence": 0.5416,
+      "committed_class": 0
+    },
+    {
+      "window": 22,
+      "timestamp": "2026-09-25 11:48:23.270",
+      "log_odds": -1.2639,
+      "adaptive_center": -0.1691,
+      "recentered_margin": -1.0948,
+      "prediction": 1,
+      "confidence": 0.7493,
+      "committed_class": 0
+    },
+    {
+      "window": 23,
+      "timestamp": "2026-09-25 11:48:23.877",
+      "log_odds": -0.3702,
+      "adaptive_center": -0.1712,
+      "recentered_margin": -0.1991,
+      "prediction": 1,
+      "confidence": 0.5496,
+      "committed_class": 0
+    },
+    {
+      "window": 24,
+      "timestamp": "2026-09-25 11:48:24.288",
+      "log_odds": 0.363,
+      "adaptive_center": -0.1658,
+      "recentered_margin": 0.5288,
+      "prediction": 2,
+      "confidence": 0.6292,
+      "committed_class": 0
+    },
+    {
+      "window": 25,
+      "timestamp": "2026-09-25 11:48:24.697",
+      "log_odds": -0.4361,
+      "adaptive_center": -0.1685,
+      "recentered_margin": -0.2676,
+      "prediction": 1,
+      "confidence": 0.5665,
+      "committed_class": 0
+    },
+    {
+      "window": 26,
+      "timestamp": "2026-09-25 11:48:25.308",
+      "log_odds": -1.0048,
+      "adaptive_center": -0.1685,
+      "recentered_margin": -0.8363,
+      "prediction": 1,
+      "confidence": 0.6977,
+      "committed_class": 0
+    },
+    {
+      "window": 27,
+      "timestamp": "2026-09-25 11:48:25.715",
+      "log_odds": -0.7622,
+      "adaptive_center": -0.1745,
+      "recentered_margin": -0.5878,
+      "prediction": 1,
+      "confidence": 0.6429,
+      "committed_class": 0
+    },
+    {
+      "window": 28,
+      "timestamp": "2026-09-25 11:48:26.129",
+      "log_odds": 0.0927,
+      "adaptive_center": -0.1718,
+      "recentered_margin": 0.2645,
+      "prediction": 2,
+      "confidence": 0.5657,
+      "committed_class": 0
+    },
+    {
+      "window": 29,
+      "timestamp": "2026-09-25 11:48:26.741",
+      "log_odds": -0.7711,
+      "adaptive_center": -0.1778,
+      "recentered_margin": -0.5934,
+      "prediction": 1,
+      "confidence": 0.6441,
+      "committed_class": 0
+    },
+    {
+      "window": 30,
+      "timestamp": "2026-09-25 11:48:27.153",
+      "log_odds": 0.225,
+      "adaptive_center": -0.1738,
+      "recentered_margin": 0.3988,
+      "prediction": 2,
+      "confidence": 0.5984,
+      "committed_class": 0
+    },
+    {
+      "window": 31,
+      "timestamp": "2026-09-25 11:48:27.559",
+      "log_odds": 0.0339,
+      "adaptive_center": -0.1717,
+      "recentered_margin": 0.2056,
+      "prediction": 2,
+      "confidence": 0.5512,
+      "committed_class": 0
+    },
+    {
+      "window": 32,
+      "timestamp": "2026-09-25 11:48:28.173",
+      "log_odds": -0.1569,
+      "adaptive_center": -0.1715,
+      "recentered_margin": 0.0146,
+      "prediction": 2,
+      "confidence": 0.5037,
+      "committed_class": 0
+    },
+    {
+      "window": 33,
+      "timestamp": "2026-09-25 11:48:28.579",
+      "log_odds": -0.8563,
+      "adaptive_center": -0.1715,
+      "recentered_margin": -0.6848,
+      "prediction": 1,
+      "confidence": 0.6648,
+      "committed_class": 0
+    },
+    {
+      "window": 34,
+      "timestamp": "2026-09-25 11:48:28.994",
+      "log_odds": -0.4105,
+      "adaptive_center": -0.1739,
+      "recentered_margin": -0.2366,
+      "prediction": 1,
+      "confidence": 0.5589,
+      "committed_class": 0
+    },
+    {
+      "window": 35,
+      "timestamp": "2026-09-25 11:48:29.604",
+      "log_odds": -0.2318,
+      "adaptive_center": -0.1745,
+      "recentered_margin": -0.0573,
+      "prediction": 1,
+      "confidence": 0.5143,
+      "committed_class": 0
+    },
+    {
+      "window": 36,
+      "timestamp": "2026-09-25 11:48:30.015",
+      "log_odds": -0.5657,
+      "adaptive_center": -0.1784,
+      "recentered_margin": -0.3873,
+      "prediction": 1,
+      "confidence": 0.5956,
+      "committed_class": 0
+    },
+    {
+      "window": 37,
+      "timestamp": "2026-09-25 11:48:30.426",
+      "log_odds": -0.0555,
+      "adaptive_center": -0.1772,
+      "recentered_margin": 0.1217,
+      "prediction": 2,
+      "confidence": 0.5304,
+      "committed_class": 0
+    },
+    {
+      "window": 38,
+      "timestamp": "2026-09-25 11:48:31.037",
+      "log_odds": -0.7638,
+      "adaptive_center": -0.183,
+      "recentered_margin": -0.5808,
+      "prediction": 1,
+      "confidence": 0.6413,
+      "committed_class": 0
+    },
+    {
+      "window": 39,
+      "timestamp": "2026-09-25 11:48:31.444",
+      "log_odds": -0.3484,
+      "adaptive_center": -0.1847,
+      "recentered_margin": -0.1637,
+      "prediction": 1,
+      "confidence": 0.5408,
+      "committed_class": 0
+    },
+    {
+      "window": 40,
+      "timestamp": "2026-09-25 11:48:31.854",
+      "log_odds": -0.6775,
+      "adaptive_center": -0.1896,
+      "recentered_margin": -0.4879,
+      "prediction": 1,
+      "confidence": 0.6196,
+      "committed_class": 0
+    },
+    {
+      "window": 41,
+      "timestamp": "2026-09-25 11:48:32.466",
+      "log_odds": 0.3396,
+      "adaptive_center": -0.1843,
+      "recentered_margin": 0.5239,
+      "prediction": 2,
+      "confidence": 0.6281,
+      "committed_class": 0
+    },
+    {
+      "window": 42,
+      "timestamp": "2026-09-25 11:48:32.874",
+      "log_odds": -0.4724,
+      "adaptive_center": -0.1872,
+      "recentered_margin": -0.2851,
+      "prediction": 1,
+      "confidence": 0.5708,
+      "committed_class": 0
+    },
+    {
+      "window": 43,
+      "timestamp": "2026-09-25 11:48:33.487",
+      "log_odds": 0.2139,
+      "adaptive_center": -0.1832,
+      "recentered_margin": 0.3971,
+      "prediction": 2,
+      "confidence": 0.598,
+      "committed_class": 0
+    },
+    {
+      "window": 44,
+      "timestamp": "2026-09-25 11:48:33.897",
+      "log_odds": 0.1059,
+      "adaptive_center": -0.1803,
+      "recentered_margin": 0.2862,
+      "prediction": 2,
+      "confidence": 0.5711,
+      "committed_class": 0
+    },
+    {
+      "window": 45,
+      "timestamp": "2026-09-25 11:48:34.309",
+      "log_odds": -0.2995,
+      "adaptive_center": -0.1815,
+      "recentered_margin": -0.118,
+      "prediction": 1,
+      "confidence": 0.5295,
+      "committed_class": 0
+    },
+    {
+      "window": 46,
+      "timestamp": "2026-09-25 11:48:34.920",
+      "log_odds": -1.0827,
+      "adaptive_center": -0.1815,
+      "recentered_margin": -0.9012,
+      "prediction": 1,
+      "confidence": 0.7112,
+      "committed_class": 0
+    },
+    {
+      "window": 47,
+      "timestamp": "2026-09-25 11:48:35.334",
+      "log_odds": -0.4886,
+      "adaptive_center": -0.1846,
+      "recentered_margin": -0.304,
+      "prediction": 1,
+      "confidence": 0.5754,
+      "committed_class": 0
+    },
+    {
+      "window": 48,
+      "timestamp": "2026-09-25 11:48:35.746",
+      "log_odds": -0.25,
+      "adaptive_center": -0.1852,
+      "recentered_margin": -0.0647,
+      "prediction": 1,
+      "confidence": 0.5162,
+      "committed_class": 0
+    },
+    {
+      "window": 49,
+      "timestamp": "2026-09-25 11:48:36.354",
+      "log_odds": -0.0515,
+      "adaptive_center": -0.1839,
+      "recentered_margin": 0.1324,
+      "prediction": 2,
+      "confidence": 0.5331,
+      "committed_class": 0
+    },
+    {
+      "window": 50,
+      "timestamp": "2026-09-25 11:48:36.770",
+      "log_odds": -0.424,
+      "adaptive_center": -0.1863,
+      "recentered_margin": -0.2377,
+      "prediction": 1,
+      "confidence": 0.5592,
+      "committed_class": 0
+    },
+    {
+      "window": 51,
+      "timestamp": "2026-09-25 11:48:37.179",
+      "log_odds": 0.0796,
+      "adaptive_center": -0.1836,
+      "recentered_margin": 0.2632,
+      "prediction": 2,
+      "confidence": 0.5654,
+      "committed_class": 0
+    },
+    {
+      "window": 52,
+      "timestamp": "2026-09-25 11:48:37.797",
+      "log_odds": -0.2321,
+      "adaptive_center": -0.1841,
+      "recentered_margin": -0.0479,
+      "prediction": 1,
+      "confidence": 0.512,
+      "committed_class": 0
+    },
+    {
+      "window": 53,
+      "timestamp": "2026-09-25 11:48:38.204",
+      "log_odds": -0.0794,
+      "adaptive_center": -0.1831,
+      "recentered_margin": 0.1036,
+      "prediction": 2,
+      "confidence": 0.5259,
+      "committed_class": 0
+    },
+    {
+      "window": 54,
+      "timestamp": "2026-09-25 11:48:38.616",
+      "log_odds": -0.1382,
+      "adaptive_center": -0.1826,
+      "recentered_margin": 0.0444,
+      "prediction": 2,
+      "confidence": 0.5111,
+      "committed_class": 0
+    },
+    {
+      "window": 55,
+      "timestamp": "2026-09-25 11:48:39.227",
+      "log_odds": 0.2428,
+      "adaptive_center": -0.1784,
+      "recentered_margin": 0.4212,
+      "prediction": 2,
+      "confidence": 0.6038,
+      "committed_class": 0
+    },
+    {
+      "window": 56,
+      "timestamp": "2026-09-25 11:48:39.638",
+      "log_odds": -0.083,
+      "adaptive_center": -0.1774,
+      "recentered_margin": 0.0945,
+      "prediction": 2,
+      "confidence": 0.5236,
+      "committed_class": 0
+    },
+    {
+      "window": 57,
+      "timestamp": "2026-09-25 11:48:40.048",
+      "log_odds": -0.4773,
+      "adaptive_center": -0.1804,
+      "recentered_margin": -0.2969,
+      "prediction": 1,
+      "confidence": 0.5737,
+      "committed_class": 0
+    },
+    {
+      "window": 58,
+      "timestamp": "2026-09-25 11:48:40.658",
+      "log_odds": -0.1917,
+      "adaptive_center": -0.1805,
+      "recentered_margin": -0.0112,
+      "prediction": 1,
+      "confidence": 0.5028,
+      "committed_class": 0
+    },
+    {
+      "window": 59,
+      "timestamp": "2026-09-25 11:48:41.073",
+      "log_odds": 0.4472,
+      "adaptive_center": -0.1805,
+      "recentered_margin": 0.6278,
+      "prediction": 2,
+      "confidence": 0.652,
+      "committed_class": 0
+    },
+    {
+      "window": 60,
+      "timestamp": "2026-09-25 11:48:41.481",
+      "log_odds": 0.042,
+      "adaptive_center": -0.1783,
+      "recentered_margin": 0.2203,
+      "prediction": 2,
+      "confidence": 0.5549,
+      "committed_class": 0
+    },
+    {
+      "window": 61,
+      "timestamp": "2026-09-25 11:48:42.094",
+      "log_odds": -0.4229,
+      "adaptive_center": -0.1807,
+      "recentered_margin": -0.2422,
+      "prediction": 1,
+      "confidence": 0.5602,
+      "committed_class": 0
+    },
+    {
+      "window": 62,
+      "timestamp": "2026-09-25 11:48:42.503",
+      "log_odds": 0.4104,
+      "adaptive_center": -0.1748,
+      "recentered_margin": 0.5852,
+      "prediction": 2,
+      "confidence": 0.6423,
+      "committed_class": 0
+    },
+    {
+      "window": 63,
+      "timestamp": "2026-09-25 11:48:42.911",
+      "log_odds": -0.8388,
+      "adaptive_center": -0.1748,
+      "recentered_margin": -0.664,
+      "prediction": 1,
+      "confidence": 0.6602,
+      "committed_class": 0
+    },
+    {
+      "window": 64,
+      "timestamp": "2026-09-25 11:48:43.522",
+      "log_odds": 0.2,
+      "adaptive_center": -0.1711,
+      "recentered_margin": 0.3711,
+      "prediction": 2,
+      "confidence": 0.5917,
+      "committed_class": 0
+    },
+    {
+      "window": 65,
+      "timestamp": "2026-09-25 11:48:43.933",
+      "log_odds": 0.2575,
+      "adaptive_center": -0.1668,
+      "recentered_margin": 0.4243,
+      "prediction": 2,
+      "confidence": 0.6045,
+      "committed_class": 0
+    },
+    {
+      "window": 66,
+      "timestamp": "2026-09-25 11:48:44.344",
+      "log_odds": 0.2541,
+      "adaptive_center": -0.1626,
+      "recentered_margin": 0.4166,
+      "prediction": 2,
+      "confidence": 0.6027,
+      "committed_class": 0
+    },
+    {
+      "window": 67,
+      "timestamp": "2026-09-25 11:48:44.954",
+      "log_odds": -0.0135,
+      "adaptive_center": -0.1611,
+      "recentered_margin": 0.1476,
+      "prediction": 2,
+      "confidence": 0.5368,
+      "committed_class": 0
+    },
+    {
+      "window": 68,
+      "timestamp": "2026-09-25 11:48:45.363",
+      "log_odds": 0.0641,
+      "adaptive_center": -0.1589,
+      "recentered_margin": 0.2229,
+      "prediction": 2,
+      "confidence": 0.5555,
+      "committed_class": 0
+    },
+    {
+      "window": 69,
+      "timestamp": "2026-09-25 11:48:45.974",
+      "log_odds": -0.2993,
+      "adaptive_center": -0.1603,
+      "recentered_margin": -0.1391,
+      "prediction": 1,
+      "confidence": 0.5347,
+      "committed_class": 0
+    },
+    {
+      "window": 70,
+      "timestamp": "2026-09-25 11:48:46.385",
+      "log_odds": 0.091,
+      "adaptive_center": -0.1577,
+      "recentered_margin": 0.2487,
+      "prediction": 2,
+      "confidence": 0.5619,
+      "committed_class": 0
+    },
+    {
+      "window": 71,
+      "timestamp": "2026-09-25 11:48:46.799",
+      "log_odds": -0.0134,
+      "adaptive_center": -0.1563,
+      "recentered_margin": 0.1429,
+      "prediction": 2,
+      "confidence": 0.5357,
+      "committed_class": 0
+    },
+    {
+      "window": 72,
+      "timestamp": "2026-09-25 11:48:47.412",
+      "log_odds": 0.5977,
+      "adaptive_center": -0.1563,
+      "recentered_margin": 0.754,
+      "prediction": 2,
+      "confidence": 0.68,
+      "committed_class": 0
+    },
+    {
+      "window": 73,
+      "timestamp": "2026-09-25 11:48:47.822",
+      "log_odds": -0.7858,
+      "adaptive_center": -0.1563,
+      "recentered_margin": -0.6295,
+      "prediction": 1,
+      "confidence": 0.6524,
+      "committed_class": 0
+    },
+    {
+      "window": 74,
+      "timestamp": "2026-09-25 11:48:48.230",
+      "log_odds": -0.4649,
+      "adaptive_center": -0.1594,
+      "recentered_margin": -0.3055,
+      "prediction": 1,
+      "confidence": 0.5758,
+      "committed_class": 0
+    },
+    {
+      "window": 75,
+      "timestamp": "2026-09-25 11:48:48.840",
+      "log_odds": -5.275,
+      "adaptive_center": -0.1594,
+      "recentered_margin": -5.1156,
+      "prediction": 1,
+      "confidence": 0.994,
+      "committed_class": 0
+    },
+    {
+      "window": 76,
+      "timestamp": "2026-09-25 11:48:49.250",
+      "log_odds": -1.3999,
+      "adaptive_center": -0.1594,
+      "recentered_margin": -1.2405,
+      "prediction": 1,
+      "confidence": 0.7756,
+      "committed_class": 0
+    },
+    {
+      "window": 77,
+      "timestamp": "2026-09-25 11:48:49.663",
+      "log_odds": 1.5092,
+      "adaptive_center": -0.1594,
+      "recentered_margin": 1.6685,
+      "prediction": 2,
+      "confidence": 0.8414,
+      "committed_class": 0
+    },
+    {
+      "window": 78,
+      "timestamp": "2026-09-25 11:48:50.273",
+      "log_odds": -0.6537,
+      "adaptive_center": -0.1643,
+      "recentered_margin": -0.4894,
+      "prediction": 1,
+      "confidence": 0.62,
+      "committed_class": 0
+    },
+    {
+      "window": 79,
+      "timestamp": "2026-09-25 11:48:50.692",
+      "log_odds": 1.4047,
+      "adaptive_center": -0.1643,
+      "recentered_margin": 1.569,
+      "prediction": 2,
+      "confidence": 0.8276,
+      "committed_class": 0
+    }
+  ]
+}

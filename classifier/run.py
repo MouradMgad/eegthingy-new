@@ -1,5 +1,6 @@
 
 import glob
+import joblib
 import json
 import mne
 import numpy as np
@@ -9,9 +10,13 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from datetime import datetime
+from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+SIMULATION_SRC = Path(__file__).resolve().parents[1] / "simulation" / "src"
+sys.path.insert(0, str(SIMULATION_SRC))
 
 from brainflow.board_shim import BoardShim
 from serial.tools import list_ports
@@ -51,6 +56,11 @@ except Exception as _mirepnet_error:
     _MIREPNET_IMPORT_ERROR = _mirepnet_error
     _HAS_MIREPNET = False
 from utils.devices import OpenBCI
+from utils.paper_results import (build_summary_payload, copy_artifact, create_session_folder,
+                                 write_session_manifest, write_summary_workbook)
+from utils.session_audit import DiagnosticSession, active_session
+from utils.video_recording import CameraRecorder
+from tiago_maze.standards import STANDARD_MAZES, get_standard_maze
 from ws import WebSocket
 from smoother import Smoother
 
@@ -496,16 +506,17 @@ def select_serial_port():
         print("Enter a COM port, its list number, or Ctrl-C to cancel.")
 
 
-def select_live_maze():
+def select_live_maze(decoder_kind="mirepnet", subject_default=None):
     """Collect the small amount of metadata needed for a headset-driven maze."""
-    print("\nLive MIRepNet OpenBCI maze")
+    decoder_name = decoder_label(decoder_kind)
+    slug = decoder_kind.replace("_", "-")
+    print(f"\nLive {decoder_name} OpenBCI maze")
     print("The robot stops at every corner and waits for fresh post-stop EEG.")
     print("Imagine LEFT hand = turn left; imagine RIGHT hand = turn right.")
     print("\nChoose one of the four original fixed mazes:")
-    print("  1) Standard maze 1 (seed 11)")
-    print("  2) Standard maze 2 (seed 12)")
-    print("  3) Standard maze 3 (seed 13)")
-    print("  4) Standard maze 4 (seed 14)")
+    for standard in STANDARD_MAZES.values():
+        print(f"  {standard.number}) Standard maze {standard.number} "
+              f"(seed {standard.seed}, {len(standard.route)} corners)")
     while True:
         try:
             raw = input("> ").strip()
@@ -518,22 +529,46 @@ def select_live_maze():
         print("enter 1, 2, 3, or 4")
 
     try:
-        subject = input("subject id [live]> ").strip() or "live"
-        test = input(f"test id [live-mirepnet-maze{maze_number}]> ").strip()
-        test = test or f"live-mirepnet-maze{maze_number}"
+        subject_fallback = str(subject_default or "live")
+        subject = input(f"subject id [{subject_fallback}]> ").strip() or subject_fallback
+        test_fallback = f"live-{slug}-maze{maze_number}"
+        test = input(f"test id [{test_fallback}]> ").strip()
+        test = test or test_fallback
         print("view: 1) third-person  2) first-person  3) top-down")
         view_raw = input("[1]> ").strip().lower()
+        video_raw = input("record main camera and maze videos? [Y/n]> ").strip().lower()
+        record_video = video_raw not in ("n", "no")
+        camera_index = 0
+        if record_video:
+            camera_raw = input("main camera index [0]> ").strip()
+            camera_index = int(camera_raw or "0")
+            if camera_index < 0:
+                raise ValueError("camera index must be zero or greater")
     except (EOFError, KeyboardInterrupt):
         print()
+        return None
+    except ValueError as error:
+        print(f"invalid camera selection: {error}")
         return None
     view = {"1": "third", "2": "first", "3": "top", "": "third"}.get(view_raw)
     if view is None:
         print("unknown view; using third-person")
         view = "third"
-    return {"maze_number": maze_number, "subject": subject, "test": test, "view": view}
+    standard = get_standard_maze(maze_number)
+    session_dir = create_session_folder(subject, test)
+    return {
+        "maze_number": maze_number,
+        "maze_seed": standard.seed,
+        "subject": subject,
+        "test": test,
+        "view": view,
+        "record_video": record_video,
+        "camera_index": camera_index,
+        "session_dir": str(session_dir),
+    }
 
 
-def launch_live_maze(config, checkpoint, calibrate):
+def launch_live_maze(config, checkpoint, calibrate, decoder_kind):
     """Open the Panda3D maze as a localhost client of the live decoder."""
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sim_dir = os.path.join(project_root, "simulation")
@@ -543,7 +578,8 @@ def launch_live_maze(config, checkpoint, calibrate):
         item for item in (src_dir, env.get("PYTHONPATH")) if item
     )
     metadata = json.dumps({
-        "mode": "live-openbci-mirepnet-maze",
+        "mode": f"live-openbci-{decoder_kind}-maze",
+        "decoder": decoder_kind,
         "checkpoint": os.path.basename(checkpoint) if checkpoint else "session model",
         "calibration": "unlabeled" if calibrate is not False else "none",
     })
@@ -562,12 +598,22 @@ def launch_live_maze(config, checkpoint, calibrate):
         config["subject"],
         "--test",
         config["test"],
+        "--report-dir",
+        config["session_dir"],
         "--meta",
         metadata,
     ]
+    if config.get("record_video"):
+        command.extend([
+            "--record-maze-video",
+            str(Path(config["session_dir"]) / "maze.mp4"),
+            "--video-fps",
+            "20",
+        ])
     print(f"\nOpening standard maze {config['maze_number']} for live EEG control...")
     print("At each wall, wait for the prompt, then sustain LEFT- or RIGHT-hand imagery.")
-    print("Close the maze window to stop and save the EEG, decisions, CSV report, and trace.")
+    print(f"Paper result folder: {config['session_dir']}")
+    print("Close the maze window to stop and save EEG, decisions, reports, and videos.")
     return subprocess.Popen(command, cwd=sim_dir, env=env)
 
 def select_decoder():
@@ -788,7 +834,7 @@ def save_online_recording(eeg_chunks, sfreq, out_path):
     files, so the session can be replayed and analyzed with the existing pipeline."""
     if not eeg_chunks:
         print("recording: no EEG captured, nothing saved")
-        return
+        return None
     data = np.hstack(eeg_chunks).astype(np.float64) / 1e6          # microvolts -> volts
     n_ch = data.shape[0]
     ch_names = (list(EEG_CHANNELS_MAPPING) if n_ch == len(EEG_CHANNELS_MAPPING)
@@ -800,20 +846,50 @@ def save_online_recording(eeg_chunks, sfreq, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     raw.save(out_path, overwrite=True, verbose=False)
     print(f"recording saved: {raw.n_times} samples ({raw.n_times / sfreq:.1f}s) -> {out_path}")
+    return out_path
 
 def save_decision_log(rows, out_path):
     """Per-window decoder trace (time, raw log-odds, adaptive center, recentered margin,
     prediction, confidence, committed class) for offline analysis of skew/drift."""
     if not rows:
-        return
+        return None
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
         f.write("time,log_odds,center,margin,pred,conf,committed\n")
         for r in rows:
             f.write(",".join(str(x) for x in r) + "\n")
     print(f"decision log saved: {len(rows)} rows -> {out_path}")
+    return out_path
 
-def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None):
+def _training_subjects(sources):
+    return sorted({int(match.group(1)) for source in sources
+                   if (match := re.search(r"subject(\d+)", os.path.basename(str(source))))})
+
+
+def _enforce_unseen(subject, sources):
+    if subject is not None and int(subject) in _training_subjects(sources):
+        raise ValueError(
+            f"unseen-subject guard failed: Subject {subject} appears in training data"
+        )
+
+
+def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None,
+               subject=None, checkpoint_path=None, require_unseen=False):
+    audit = active_session()
+    paper_session_dir = (Path(live_maze["session_dir"]).resolve()
+                         if live_maze is not None else None)
+    if paper_session_dir is not None:
+        if audit:
+            audit.set_paper_result_dir(paper_session_dir)
+        write_session_manifest(
+            paper_session_dir,
+            status="setup",
+            subject=live_maze["subject"],
+            test=live_maze["test"],
+            maze_number=live_maze["maze_number"],
+            maze_seed=live_maze["maze_seed"],
+            record_video=live_maze["record_video"],
+        )
     synthetic = select_device()
     if synthetic is None:
         return
@@ -825,6 +901,10 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
     deep_mode = is_deep(decoder_kind)
     foundation_mode = is_foundation(decoder_kind)
     neural_mode = is_neural(decoder_kind)
+    if audit:
+        audit.event("operator_configuration", synthetic=synthetic, serial_port=serial_port,
+                    decoder=decoder_kind, headless=headless, live_maze=live_maze,
+                    subject=subject)
 
     if foundation_mode and calibrate is None:
         print("\nMIRepNet live startup:")
@@ -843,23 +923,45 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
                 break
             print("enter 1 or 2")
 
-    checkpoint = select_neural_source(decoder_kind) if neural_mode else None
+    checkpoint = (os.path.abspath(checkpoint_path) if checkpoint_path else
+                  select_neural_source(decoder_kind) if neural_mode else None)
     X_train = y_train = None
 
     if checkpoint is not None:
-        module = neural_module(decoder_kind)
-        device = MIREPNET_DEVICE if foundation_mode else DEEP_DEVICE
-        decoder_class = mirepmod.MIRepNetDecoder if foundation_mode else deepmod.DeepDecoder
-        clf = decoder_class.load(checkpoint, device=device)
-        meta = clf.meta_
-        passes = meta.get("epochs_run")
-        pass_note = f"{passes} passes, " if passes is not None else ""
-        print(f"\nLoaded {decoder_label(decoder_kind)} from {os.path.basename(checkpoint)}\n"
-              f"  trained on {', '.join(meta['trained_on']) or 'unknown'} "
-              f"({pass_note}best epoch {meta['best_epoch']}, "
-              f"held-out loss {meta['validation_loss']:.4f})")
-        n_times = clf.n_times_
-        train_sfreq = float(module.SFREQ)
+        if audit:
+            audit.set_checkpoint(checkpoint)
+        if neural_mode:
+            module = neural_module(decoder_kind)
+            device = MIREPNET_DEVICE if foundation_mode else DEEP_DEVICE
+            decoder_class = mirepmod.MIRepNetDecoder if foundation_mode else deepmod.DeepDecoder
+            clf = decoder_class.load(checkpoint, device=device)
+            meta = clf.meta_
+            if require_unseen:
+                _enforce_unseen(subject, meta.get("trained_on", []))
+            passes = meta.get("epochs_run")
+            pass_note = f"{passes} passes, " if passes is not None else ""
+            print(f"\nLoaded {decoder_label(decoder_kind)} from {os.path.basename(checkpoint)}\n"
+                  f"  trained on {', '.join(meta['trained_on']) or 'unknown'} "
+                  f"({pass_note}best epoch {meta['best_epoch']}, "
+                  f"held-out loss {meta['validation_loss']:.4f})")
+            n_times = clf.n_times_
+            train_sfreq = float(module.SFREQ)
+        else:
+            blob = joblib.load(checkpoint)
+            if blob.get("format") != "eeg-online-classical-v1":
+                raise ValueError(f"{checkpoint} is not a classical online checkpoint")
+            if blob.get("kind") != decoder_kind:
+                raise ValueError(
+                    f"checkpoint contains {blob.get('kind')}, not requested {decoder_kind}"
+                )
+            if require_unseen:
+                _enforce_unseen(subject, blob.get("trained_on", []))
+            clf = blob["model"]
+            n_times = int(blob["n_times"])
+            train_sfreq = float(blob["sample_rate_hz"])
+            print(f"\nLoaded {decoder_label(decoder_kind)} from {os.path.basename(checkpoint)}\n"
+                  f"  trained on {len(blob.get('trained_on', []))} recordings; "
+                  f"subjects {_training_subjects(blob.get('trained_on', []))}")
     else:
         files = discover_files()
         if not files:
@@ -874,6 +976,8 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
         train_files = select_files("training files (e.g. 1,2,3): ", files)
         if train_files is None:
             return
+        if require_unseen:
+            _enforce_unseen(subject, train_files)
 
         if foundation_mode:
             warn_mirepnet_data_contract(train_files)
@@ -919,6 +1023,10 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
         return
 
     sfreq = float(BoardShim.get_sampling_rate(bci.board.board_id))
+    if audit:
+        audit.start_eeg(len(bci.eeg), sfreq)
+        audit.event("board_connected", board_id=bci.board.board_id, sample_rate=sfreq,
+                    eeg_rows=bci.eeg, serial_port=bci.serial_port)
     if abs(sfreq - train_sfreq) > 0.5:
         print(f"warning: live sfreq={sfreq} differs from training sfreq={train_sfreq}; "
               "predictions may degrade")
@@ -995,6 +1103,9 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
             print(f"(got {eeg_all.shape[0]} channels, need index {max(train_idx)})")
             return
 
+        if audit:
+            audit.append_eeg(eeg_all)
+
         if record_eeg:
             rec_eeg.append(eeg_all.astype(np.float32))     # all EEG channels, microvolts
 
@@ -1038,21 +1149,47 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
         print(f"[{ts}  Δ{dt_ms:6.0f}ms]  {pred}  conf {conf*100:3.0f}% (ctr {recenter.center:+.1f})  [{breakdown}]  → {tag}{commit}")
 
         if record_decisions:
-            rec_rows.append((ts, f"{s:.4f}", f"{recenter.center:.4f}", f"{z:.4f}",
-                             int(pred), f"{conf:.4f}", int(final)))
+            row = (ts, f"{s:.4f}", f"{recenter.center:.4f}", f"{z:.4f}",
+                   int(pred), f"{conf:.4f}", int(final))
+            rec_rows.append(row)
+            if audit:
+                audit.decision(row)
 
     bci.callback = on_chunk
-    bci.start()
-
-    if record_eeg:
-        print(f"\n📼 recording session → recordings/online_{rec_stamp}_raw.fif (+ _decisions.csv)")
-    elif record_decisions:
-        print(f"\nrecording MIRepNet decision windows → recordings/online_{rec_stamp}_decisions.xlsx")
-
     maze_process = None
+    camera_recorder = None
+    bci_started = False
+    paper_started_at = None
     try:
+        if paper_session_dir is not None:
+            paper_started_at = datetime.now()
+            write_session_manifest(
+                paper_session_dir,
+                status="recording",
+                subject=live_maze["subject"], test=live_maze["test"],
+                maze_number=live_maze["maze_number"], maze_seed=live_maze["maze_seed"],
+                decoder=decoder_kind, started_at=paper_started_at,
+                checkpoint=os.path.abspath(checkpoint) if checkpoint else "session model",
+                calibration="unlabeled" if calibrate is not False else "none",
+            )
+            if live_maze.get("record_video"):
+                camera_recorder = CameraRecorder(
+                    paper_session_dir / "camera.mp4",
+                    camera_index=live_maze.get("camera_index", 0),
+                    fps=30.0,
+                ).start()
+                print(f"Main camera recording: {paper_session_dir / 'camera.mp4'}")
+        bci.start()
+        bci_started = True
+
+        if record_eeg:
+            print(f"\n📼 recording session → recordings/online_{rec_stamp}_raw.fif (+ _decisions.csv)")
+        elif record_decisions:
+            print(f"\nrecording MIRepNet decision windows → recordings/online_{rec_stamp}_decisions.xlsx")
+
         if live_maze is not None:
-            maze_process = launch_live_maze(live_maze, checkpoint, calibrate)
+            maze_process = launch_live_maze(live_maze, checkpoint, calibrate,
+                                            decoder_kind)
         if headless:
             if maze_process is not None:
                 print("\nlive maze running — close its window or press Ctrl-C here to stop.\n")
@@ -1067,19 +1204,36 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
     except KeyboardInterrupt:
         print("\nStopping…")
     finally:
+        if audit:
+            audit.event("shutdown_started", decisions=len(rec_rows), eeg_chunks=len(rec_eeg))
         if maze_process is not None and maze_process.poll() is None:
             maze_process.terminate()
             try:
                 maze_process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 maze_process.kill()
-        bci.stop()
+                maze_process.wait(timeout=5)
+        if bci_started:
+            bci.stop()
         bci.close()
         ws.stop()
+        if camera_recorder is not None:
+            camera_recorder.stop()
+        saved_artifacts = []
         if record_eeg:
-            save_online_recording(rec_eeg, sfreq, os.path.join(RECORDINGS_DIR, f"online_{rec_stamp}_raw.fif"))
+            saved = save_online_recording(
+                rec_eeg, sfreq,
+                os.path.join(RECORDINGS_DIR, f"online_{rec_stamp}_raw.fif"),
+            )
+            if saved:
+                saved_artifacts.append(saved)
         if record_decisions:
-            save_decision_log(rec_rows, os.path.join(RECORDINGS_DIR, f"online_{rec_stamp}_decisions.csv"))
+            saved = save_decision_log(
+                rec_rows,
+                os.path.join(RECORDINGS_DIR, f"online_{rec_stamp}_decisions.csv"),
+            )
+            if saved:
+                saved_artifacts.append(saved)
         if foundation_mode:
             try:
                 from scripts.mirepnet_excel import export_online_workbook
@@ -1098,8 +1252,58 @@ def run_online(headless=False, decoder_kind=None, calibrate=None, live_maze=None
                     },
                 )
                 print(f"Excel decision report saved: {excel_path}")
+                saved_artifacts.extend([
+                    excel_path,
+                    str(Path(excel_path).with_suffix(".json")),
+                ])
             except Exception as error:
                 print(f"Excel decision report failed: {error}")
+        if paper_session_dir is not None:
+            paper_ended_at = datetime.now()
+            for artifact in saved_artifacts:
+                copy_artifact(artifact, paper_session_dir)
+            report_paths = sorted(
+                paper_session_dir.glob("SUBJECT*_TEST*_SEED*.csv"),
+                key=lambda path: path.stat().st_mtime,
+            )
+            report_path = report_paths[-1] if report_paths else None
+            try:
+                payload = build_summary_payload(
+                    paper_session_dir,
+                    live_maze["subject"], live_maze["test"],
+                    live_maze["maze_number"], live_maze["maze_seed"],
+                    decoder_label(decoder_kind),
+                    paper_started_at or paper_ended_at, paper_ended_at,
+                    report_path=report_path,
+                    checkpoint=os.path.abspath(checkpoint) if checkpoint else "session model",
+                    calibration="unlabeled" if calibrate is not False else "none",
+                )
+                summary_path = write_summary_workbook(payload, paper_session_dir)
+                print(f"Paper results summary saved: {summary_path}")
+                if audit:
+                    audit.event("paper_results_saved", directory=str(paper_session_dir),
+                                summary=str(summary_path), report=str(report_path or ""))
+                write_session_manifest(
+                    paper_session_dir,
+                    status="complete" if report_path else "partial",
+                    subject=live_maze["subject"], test=live_maze["test"],
+                    maze_number=live_maze["maze_number"], maze_seed=live_maze["maze_seed"],
+                    decoder=decoder_kind, started_at=paper_started_at,
+                    ended_at=paper_ended_at, report=report_path, summary=summary_path,
+                    camera_video=(paper_session_dir / "camera.mp4") if live_maze.get("record_video") else None,
+                    maze_video=(paper_session_dir / "maze.mp4") if live_maze.get("record_video") else None,
+                )
+            except Exception as error:
+                write_session_manifest(
+                    paper_session_dir, status="summary_failed", error=repr(error),
+                    subject=live_maze["subject"], test=live_maze["test"],
+                    maze_number=live_maze["maze_number"], maze_seed=live_maze["maze_seed"],
+                    started_at=paper_started_at, ended_at=paper_ended_at,
+                )
+                print(f"Paper results summary failed: {error}")
+                if audit:
+                    audit.event("paper_results_failed", error=repr(error),
+                                directory=str(paper_session_dir))
 
 def menu():
     print("=" * 35)
@@ -1112,16 +1316,69 @@ def menu():
 
 def main():
     argv = sys.argv[1:]
+    requested_decoder = None
+    requested_subject = None
+    requested_checkpoint = None
+    require_unseen = '--require-unseen' in argv
+    if '--subject' in argv:
+        index = argv.index('--subject')
+        if index + 1 >= len(argv):
+            raise ValueError("--subject requires a positive integer")
+        try:
+            requested_subject = int(argv[index + 1])
+        except ValueError as error:
+            raise ValueError("--subject requires a positive integer") from error
+        if requested_subject <= 0:
+            raise ValueError("--subject requires a positive integer")
+    if require_unseen and requested_subject is None:
+        raise ValueError("--require-unseen also requires --subject ID")
+    if '--checkpoint' in argv:
+        index = argv.index('--checkpoint')
+        if index + 1 >= len(argv):
+            raise ValueError("--checkpoint requires a file path")
+        requested_checkpoint = argv[index + 1]
+        if not os.path.isfile(requested_checkpoint):
+            raise ValueError(f"checkpoint not found: {requested_checkpoint}")
+    if '--decoder' in argv:
+        index = argv.index('--decoder')
+        if index + 1 >= len(argv):
+            raise ValueError("--decoder requires ea, riemann, deep_compactdyn, deep_sinc, or mirepnet")
+        requested_decoder = argv[index + 1].strip().lower()
+        allowed = {'ea', 'riemann', 'deep_compactdyn', 'deep_sinc', 'mirepnet'}
+        if requested_decoder not in allowed:
+            raise ValueError(f"unknown decoder {requested_decoder!r}; choose {sorted(allowed)}")
+    if argv and argv[0] == '--online':
+        run_online(headless=False, decoder_kind=requested_decoder,
+                   subject=requested_subject, checkpoint_path=requested_checkpoint,
+                   require_unseen=require_unseen)
+        return
+    if argv and argv[0] == '--online-headless':
+        run_online(headless=True, decoder_kind=requested_decoder,
+                   subject=requested_subject, checkpoint_path=requested_checkpoint,
+                   require_unseen=require_unseen)
+        return
+    if argv and argv[0] == '--live-maze':
+        decoder = requested_decoder or 'ea'
+        live_maze = select_live_maze(decoder, requested_subject)
+        if live_maze is not None:
+            run_online(headless=True, decoder_kind=decoder, live_maze=live_maze,
+                       subject=requested_subject, checkpoint_path=requested_checkpoint,
+                       require_unseen=require_unseen)
+        return
     if argv and argv[0] == '--mirepnet-online':
-        run_online(headless=False, decoder_kind='mirepnet')
+        run_online(headless=False, decoder_kind='mirepnet', subject=requested_subject,
+                   checkpoint_path=requested_checkpoint, require_unseen=require_unseen)
         return
     if argv and argv[0] == '--mirepnet-headless':
-        run_online(headless=True, decoder_kind='mirepnet')
+        run_online(headless=True, decoder_kind='mirepnet', subject=requested_subject,
+                   checkpoint_path=requested_checkpoint, require_unseen=require_unseen)
         return
     if argv and argv[0] == '--mirepnet-live-maze':
-        live_maze = select_live_maze()
+        live_maze = select_live_maze('mirepnet', requested_subject)
         if live_maze is not None:
-            run_online(headless=True, decoder_kind='mirepnet', live_maze=live_maze)
+            run_online(headless=True, decoder_kind='mirepnet', live_maze=live_maze,
+                       subject=requested_subject, checkpoint_path=requested_checkpoint,
+                       require_unseen=require_unseen)
         return
     if argv and argv[0] in ('--headless', '--no-gui', '-H'):
         run_online(headless=True)
@@ -1148,7 +1405,30 @@ def main():
         print("invalid choice\n")
 
 if __name__ == '__main__':
-    try:
-        main()
-    except Exception as e:
-        print(f"\nCRITICAL ERROR: {e}")
+    audited_live = any(arg in {
+        '--online', '--online-headless', '--live-maze', '--mirepnet-online', '--mirepnet-headless',
+        '--mirepnet-live-maze', '--headless', '--no-gui', '-H'
+    } for arg in sys.argv[1:])
+    if audited_live:
+        launch = next(arg.lstrip('-').replace('-', '_') for arg in sys.argv[1:]
+                      if arg.startswith('-') and arg not in {'--decoder'})
+        decoder = (sys.argv[sys.argv.index('--decoder') + 1]
+                   if '--decoder' in sys.argv and sys.argv.index('--decoder') + 1 < len(sys.argv)
+                   else 'interactive')
+        subject = (sys.argv[sys.argv.index('--subject') + 1]
+                   if '--subject' in sys.argv and sys.argv.index('--subject') + 1 < len(sys.argv)
+                   else None)
+        mode = f"{launch}_{decoder}" + (f"_subject{subject}" if subject else "")
+        try:
+            with DiagnosticSession(mode):
+                main()
+        except Exception as error:
+            print(f"\nCRITICAL ERROR: {error}")
+            traceback.print_exc()
+            raise SystemExit(1)
+    else:
+        try:
+            main()
+        except Exception as error:
+            print(f"\nCRITICAL ERROR: {error}")
+            traceback.print_exc()

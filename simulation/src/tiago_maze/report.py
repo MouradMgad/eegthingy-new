@@ -35,6 +35,9 @@ DECISION_FIELDS = [
     "intended_dir",    # the correct direction for this corner (LEFT/RIGHT)
     "chosen_dir",      # what was actually chosen
     "result",          # correct / wrong (did the robot end up facing the path?)
+    "scored",          # True only for the first EEG/model choice at this corner
+    "attempt_role",    # initial decision / subject correction / automatic recovery
+    "corner_attempt",  # 1-based physical attempt number at this corner
     "wait_s",          # wall-clock time spent waiting for this decision
     "sim_time_s",      # elapsed run time when the decision was made
     "robot_x",         # robot pose at the moment of decision
@@ -49,6 +52,23 @@ DECISION_FIELDS = [
     "predicted_label", # 1=LEFT, 2=RIGHT (steers the robot)
     "confidence",
 ]
+
+
+def read_report(path) -> tuple[dict, list[dict]]:
+    """Read a two-section simulator CSV into summary and decision rows."""
+    with Path(path).open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.reader(handle))
+    try:
+        divider = rows.index([])
+    except ValueError as error:
+        raise ValueError(f"maze report has no summary/detail divider: {path}") from error
+    summary = {
+        row[0]: row[1] if len(row) > 1 else ""
+        for row in rows[1:divider] if row
+    }
+    headers = rows[divider + 1]
+    decisions = [dict(zip(headers, row)) for row in rows[divider + 2:] if row]
+    return summary, decisions
 
 
 def report_filename(seed, when: datetime | None = None,

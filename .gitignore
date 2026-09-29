@@ -2,6 +2,7 @@
 **/__pycache__/
 .DS_Store
 .venv/
+.venv-broken-*/
 __pycache__/
 .artifacts/
 .vscode/
@@ -23,5 +24,11 @@ deepnet/**/*.pt
 
 # trained online decoders (regenerate by training; large binaries)
 models/deep/*.pt
+models/classical/*.joblib
 models/mirepnet/*.pt
 models/mirepnet/*.training.json
+recordings/diagnostic-sessions/
+
+# per-participant paper artifacts (keep only the workflow note)
+paper results/*
+!paper results/README.md

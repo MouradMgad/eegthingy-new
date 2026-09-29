@@ -69,3 +69,16 @@ def test_creates_missing_dir(tmp_path):
     path = report.write_report(out, {"seed": 1}, sample_records())
     assert path.exists()
     assert path.parent == out
+
+
+def test_read_report_restores_summary_and_physical_turns(tmp_path):
+    path = report.write_report(
+        tmp_path,
+        {"seed": 11, "standard_maze": 1, "subject": 10, "test": 1},
+        sample_records(),
+    )
+    summary, decisions = report.read_report(path)
+    assert summary["seed"] == "11"
+    assert summary["standard_maze"] == "1"
+    assert [row["chosen_dir"] for row in decisions] == ["LEFT", "LEFT"]
+    assert [row["wait_s"] for row in decisions] == ["1.23", "2.5"]

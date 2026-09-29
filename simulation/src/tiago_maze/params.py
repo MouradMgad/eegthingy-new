@@ -59,6 +59,7 @@ class MazeParams:
     max_gap: int = 3                    # max straight cells between corners
     seed: int | None = None
     turn_sequence: tuple[str, ...] | None = None  # optional forced LEFT/RIGHT route
+    cell_sequence: tuple[tuple[int, int], ...] | None = None  # frozen exact layout
 
 
 @dataclass
@@ -80,7 +81,10 @@ class GameParams:
     offscreen: bool = False             # render offscreen (testing)
     max_frames: int | None = None       # exit after N frames (testing)
     screenshot: str | None = None       # save a screenshot on exit (testing)
+    maze_video: str | None = None       # optional MP4 capture of the rendered maze
+    video_fps: float = 20.0             # maze recording frame rate
     decision_plan: list[dict] = field(default_factory=list)  # recorded EEG replay rows
+    session_decision_plan: list[dict] = field(default_factory=list)  # raw physical turns
     # In-process testing hook. Called only when the robot reaches a corner;
     # returns the planned row plus a newly computed prediction/confidence.
     decision_provider: object | None = None

@@ -34,6 +34,9 @@ This repository contains two main EEG pipelines:
    - four-command flicker interface
    - automated phase labeling
    - FIF, CSV, and JSON export
+   - cap and per-channel signal-quality checks
+   - frequency-domain training and held-out testing
+   - live left/right cap control of the TIAGo maze
    - separate documentation in [ssvep/README.md](ssvep/README.md)
 
 ## Repository layout
@@ -59,7 +62,7 @@ The MI stack supports:
 - MIRepNet fine-tuning and inference
 - replay and maze-control evaluation
 
-The top-level MIRepNet Workbench exposes six guided paths:
+The top-level MIRepNet Workbench exposes eight guided paths:
 
 1. offline selected-subject testing
 2. online GUI decoding, with or without unlabeled startup calibration
@@ -67,6 +70,73 @@ The top-level MIRepNet Workbench exposes six guided paths:
 4. fine-tuning on selected whole subjects or exact recording files
 5. recorded-subject replay on one of the original fixed mazes
 6. live OpenBCI headset control on a fixed maze
+7. live-session preflight for the checkpoint, environment, board, and cap channels
+8. recovery and diagnosis of the latest live session
+
+### Live-session diagnostics
+
+Every direct online or headless decoder launch, plus the MIRepNet live-maze
+launch, creates a timestamped folder under `recordings/diagnostic-sessions/`
+before asking the first device question. The folder is updated throughout the
+run and contains:
+
+- `console.log` — complete stdout/stderr from startup through shutdown;
+- `manifest.json` — command, Python/platform identity, Git commit, disk space,
+  completion state, and any uncaught error;
+- `events.jsonl` — structured lifecycle events including checkpoint hash and
+  board connection details;
+- `decisions.csv` — every prediction, confidence, adaptive center, and commit,
+  flushed immediately;
+- `raw_eeg_microvolts.f32` plus `raw_eeg_journal.json` — incremental raw EEG
+  that survives an interrupted run; and
+- `raw_eeg_recovered_raw.fif` — automatically recovered MNE recording after a
+  normal stop or handled failure.
+
+Use MIRepNet Workbench option 7 with the real cap before a participant session.
+It performs actual checkpoint inference and can stream the board to flag flat,
+saturated, noisy, or mains-contaminated channels. Option 8 summarizes the latest
+session, recovers FIF from the binary journal when necessary, and writes
+`diagnosis.json`.
+
+Direct GUI launches for a controlled live comparison are:
+
+```powershell
+uv run python classifier/run.py --online --decoder ea --subject 10
+uv run python classifier/run.py --online --decoder riemann --subject 10
+uv run python classifier/run.py --online --decoder deep_compactdyn --subject 10
+uv run python classifier/run.py --online --decoder deep_sinc --subject 10
+uv run python classifier/run.py --online --decoder mirepnet --subject 10
+```
+
+Replace `--online` with `--online-headless` to broadcast predictions without
+the classifier GUI. Replace it with `--live-maze` to launch an original fixed
+maze and control it with that decoder. The deep decoders train when launched if
+no saved checkpoint is selected, so prepare their training files and allow
+training time before the participant session. For an unbiased Subject 10
+MIRepNet test, select
+`models/mirepnet/mirepnet__finetuned_20260921_101859.pt`; the other local
+checkpoint includes Subject 10 in its fine-tuning data.
+
+Every live-maze launch asks whether to record the main camera and the rendered
+maze. It then creates an overwrite-safe `paper results/subject_<id>_test_<id>`
+folder containing the raw EEG, decision logs, diagnostic bundle, exact maze
+CSV/NPZ trace, optional `camera.mp4` and `maze.mp4`, and a formatted
+`results summary.xlsx` with session timing, accuracy, and every corner marked
+correct or wrong. Maze numbers 1--4 use the exact historical cell layouts from
+the original simulator seeds 11--14; all decoder types share the same registry.
+
+The reproducible all-decoder unseen-Subject-10 benchmark is:
+
+```powershell
+uv run python scripts/evaluate_unseen_subject10_all.py
+```
+
+It trains only on validated recordings from Subjects 1, 3, 4, 5, 6, 7, and 8,
+uses S10 run 5 only for optional unlabeled live-style calibration, and scores
+S10 runs 6--8. It writes the full metrics to `results/unseen-subject10/` and
+saves reusable checkpoints for every decoder. For live launches, combine an
+explicit checkpoint with `--subject 10 --require-unseen`; the command aborts if
+the checkpoint metadata contains Subject 10.
 
 ### Label convention
 
@@ -364,7 +434,7 @@ The physical channel 8 is excluded because it is the known disconnected input in
 this 15-electrode setup. Legacy T3/T4/T5/T6 names are stored as their modern
 10-20 equivalents T7/T8/P7/P8.
 
-### Launching the collector
+### Launching the SSVEP workbench
 
 ```powershell
 uv run python main.py
@@ -372,7 +442,13 @@ uv run python main.py
 
 Then choose:
 
-- `5) SSVEP Data Collector`
+- `5) SSVEP Workbench`
+
+The workbench provides labeled collection, a 15-channel cap-quality report,
+four-command model training, held-out testing with a confusion matrix, and live
+left/right cap control of one of the four standard TIAGo mazes. The live path
+retains the maze's fresh-window gate so predictions produced while the robot is
+moving cannot be consumed at the next wall.
 
 More detail is in [ssvep/README.md](ssvep/README.md).
 

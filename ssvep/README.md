@@ -30,7 +30,26 @@ From the repository root:
 uv run python main.py
 ```
 
-Choose `5) SSVEP Data Collector`.
+Choose `5) SSVEP Workbench`. The menu contains:
+
+1. labeled four-command data collection;
+2. a cap check that reports GOOD, CHECK, or BAD for every connected electrode;
+3. model training from one or more SSVEP FIF recordings;
+4. held-out testing with accuracy and a four-class confusion matrix; and
+5. live left/right SSVEP control of a standard TIAGo maze.
+
+The cap check flags flat/disconnected inputs, saturation, unusually large
+artifacts, and strong 60 Hz contamination. It is a signal sanity check, not a
+substitute for a hardware impedance meter.
+
+Training learns per-channel reliability weights for harmonic spectral evidence
+at the four configured stimulus frequencies. Saved models live in
+`models/ssvep/`. Keep testing recordings separate from training recordings.
+
+The live maze uses only LEFT and RIGHT because the maze controller accepts turn
+commands. An always-on-top stimulus window remains visible while the simulation
+runs. Continuous EEG and per-window decisions are saved under
+`ssvep/recordings/` when the live window closes.
 
 Use synthetic mode only to check the screen flow and file-writing path. It does
 not contain human SSVEP and must never be used as training data.

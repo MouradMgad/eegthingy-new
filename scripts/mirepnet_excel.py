@@ -89,3 +89,13 @@ def export_online_workbook(rows, xlsx_path, metadata=None):
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return _run_exporter("export_mirepnet_online_excel.mjs", json_path, xlsx_path)
+
+
+def export_paper_results_workbook(json_path, xlsx_path, preview_path=None):
+    """Create the paper-session summary from its reproducible JSON payload."""
+    return _run_exporter(
+        "export_paper_results_summary.mjs",
+        Path(json_path).resolve(),
+        Path(xlsx_path).resolve(),
+        Path(preview_path).resolve() if preview_path else None,
+    )

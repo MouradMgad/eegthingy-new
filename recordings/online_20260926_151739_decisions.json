@@ -1,0 +1,115 @@
+{
+  "format": "mirepnet-online-session-v1",
+  "created_at": "2026-09-26T15:17:45",
+  "metadata": {
+    "mode": "live maze",
+    "input_device": "synthetic",
+    "checkpoint": "C:\\Users\\mourad\\OneDrive\\Documents\\eegthingy-new\\models\\mirepnet\\mirepnet__finetuned_20260925_175035.pt",
+    "decoder": "MIRepNet foundation model (pretrained, 5.14M params)",
+    "stride_seconds": 0.2,
+    "calibration": "none",
+    "standard_maze": 1
+  },
+  "windows": [
+    {
+      "window": 1,
+      "timestamp": "2026-09-26 15:17:43.341",
+      "log_odds": 2.7513,
+      "adaptive_center": 0.0,
+      "recentered_margin": 2.7513,
+      "prediction": 2,
+      "confidence": 0.94,
+      "committed_class": 0
+    },
+    {
+      "window": 2,
+      "timestamp": "2026-09-26 15:17:43.553",
+      "log_odds": 4.785,
+      "adaptive_center": 0.0,
+      "recentered_margin": 4.785,
+      "prediction": 2,
+      "confidence": 0.9917,
+      "committed_class": 0
+    },
+    {
+      "window": 3,
+      "timestamp": "2026-09-26 15:17:43.763",
+      "log_odds": 2.7871,
+      "adaptive_center": 0.0,
+      "recentered_margin": 2.7871,
+      "prediction": 2,
+      "confidence": 0.942,
+      "committed_class": 0
+    },
+    {
+      "window": 4,
+      "timestamp": "2026-09-26 15:17:43.975",
+      "log_odds": 3.7228,
+      "adaptive_center": 0.0,
+      "recentered_margin": 3.7228,
+      "prediction": 2,
+      "confidence": 0.9764,
+      "committed_class": 0
+    },
+    {
+      "window": 5,
+      "timestamp": "2026-09-26 15:17:44.184",
+      "log_odds": 2.9439,
+      "adaptive_center": 0.0,
+      "recentered_margin": 2.9439,
+      "prediction": 2,
+      "confidence": 0.95,
+      "committed_class": 0
+    },
+    {
+      "window": 6,
+      "timestamp": "2026-09-26 15:17:44.397",
+      "log_odds": 2.0573,
+      "adaptive_center": 0.0,
+      "recentered_margin": 2.0573,
+      "prediction": 2,
+      "confidence": 0.8867,
+      "committed_class": 2
+    },
+    {
+      "window": 7,
+      "timestamp": "2026-09-26 15:17:44.608",
+      "log_odds": 1.8707,
+      "adaptive_center": 0.0,
+      "recentered_margin": 1.8707,
+      "prediction": 2,
+      "confidence": 0.8665,
+      "committed_class": 2
+    },
+    {
+      "window": 8,
+      "timestamp": "2026-09-26 15:17:44.818",
+      "log_odds": 2.6611,
+      "adaptive_center": 0.0,
+      "recentered_margin": 2.6611,
+      "prediction": 2,
+      "confidence": 0.9347,
+      "committed_class": 2
+    },
+    {
+      "window": 9,
+      "timestamp": "2026-09-26 15:17:45.019",
+      "log_odds": 2.7066,
+      "adaptive_center": 0.0,
+      "recentered_margin": 2.7066,
+      "prediction": 2,
+      "confidence": 0.9374,
+      "committed_class": 2
+    },
+    {
+      "window": 10,
+      "timestamp": "2026-09-26 15:17:45.236",
+      "log_odds": 2.9411,
+      "adaptive_center": 0.0,
+      "recentered_margin": 2.9411,
+      "prediction": 2,
+      "confidence": 0.9498,
+      "committed_class": 2
+    }
+  ]
+}
